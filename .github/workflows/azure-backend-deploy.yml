@@ -1,0 +1,28 @@
+name: Azure Backend Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Build Docker image
+        run: |
+          docker build -t kingdomx-backend:latest ./backend
+      - name: Push to Azure Container Registry
+        run: |
+          echo "Login to ACR"
+          az acr login --name ${{ secrets.AZURE_ACR_NAME }}
+          docker tag kingdomx-backend:latest ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/kingdomx-backend:latest
+          docker push ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/kingdomx-backend:latest
+      - name: Update Web App (container)
+        run: |
+          az webapp config container set --name ${{ secrets.AZURE_WEBAPP_NAME }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --docker-custom-image-name ${{ secrets.AZURE_ACR_NAME }}.azurecr.io/kingdomx-backend:latest
+          az webapp restart --name ${{ secrets.AZURE_WEBAPP_NAME }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}

@@ -1,0 +1,83 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kingdomx
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+
+  backend:
+    build: ./backend
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kingdomx
+      - MONGO_URI=mongodb://mongo:27017/kingdomx
+    depends_on:
+      - postgres
+      - mongo
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+    depends_on:
+      - backend
+
+  chat:
+    build: ./services/chat
+    ports:
+      - "5001:5001"
+    depends_on:
+      - backend
+
+  tasks:
+    build: ./services/tasks
+    ports:
+      - "5002:5002"
+    depends_on:
+      - backend
+
+  notifications:
+    build: ./services/notifications
+    ports:
+      - "5003:5003"
+    depends_on:
+      - backend
+
+  ai:
+    build: ./services/ai
+    ports:
+      - "5004:5004"
+    depends_on:
+      - backend
+
+  backend-django:
+    build: ./backend-django
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kingdomx
+      - JWT_SECRET=dev-secret
+      - DEBUG=true
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
+  mongodata:

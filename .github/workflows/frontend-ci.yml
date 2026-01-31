@@ -1,0 +1,171 @@
+name: Frontend CI & E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:24
+        options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+      - name: Start DB services (Postgres & Mongo)
+        run: |
+          docker-compose up -d postgres mongo
+      - name: Start backend
+        run: |
+          cd backend
+          npm ci
+          # run prisma migrate (best-effort in CI)
+          npm run prisma:migrate:dev --name ci || true
+          npm run prisma:seed || true
+          # start backend in background
+          npm run dev &
+      - name: Wait for backend to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://localhost:4000/api/ping; then echo "backend ready" && break; fi
+            echo "waiting for backend..." && sleep 2
+          done
+      # Cypress tests are executed in a parallel matrix job below for faster CI
+
+  e2e:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        spec:
+          - "cypress/e2e/reorder.cy.ts"
+          - "cypress/e2e/cross_column.cy.ts"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+      - name: Start DB services (Postgres & Mongo)
+        run: |
+          docker-compose up -d postgres mongo
+      - name: Start backend
+        run: |
+          cd backend
+          npm ci
+          npm run prisma:migrate:dev --name ci || true
+          npm run prisma:seed || true
+          npm run dev &
+      - name: Wait for backend to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://localhost:4000/api/ping; then echo "backend ready" && break; fi
+            echo "waiting for backend..." && sleep 2
+          done
+
+  smoke:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+      - name: Start DB services (Postgres & Mongo)
+        run: |
+          docker-compose up -d postgres mongo
+      - name: Start backend
+        run: |
+          cd backend
+          npm ci
+          npm run prisma:migrate:dev --name ci || true
+          npm run prisma:seed || true
+          npm run dev &
+      - name: Wait for backend to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://localhost:4000/api/ping; then echo "backend ready" && break; fi
+            echo "waiting for backend..." && sleep 2
+          done
+      - name: Run smoke spec
+        uses: cypress-io/github-action@v5
+        with:
+          start: npm run dev --prefix frontend
+          wait-on: "http://localhost:3000"
+          working-directory: ./frontend
+          browser: chrome
+          spec: "cypress/e2e/smoke.cy.ts"
+          command: npx cypress run --spec cypress/e2e/smoke.cy.ts
+        env:
+          API_URL: http://localhost:4000
+          CYPRESS_baseUrl: http://localhost:3000
+      - name: Upload smoke screenshots
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-smoke-screenshots
+          path: frontend/cypress/screenshots
+      - name: Upload smoke videos
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-smoke-videos
+          path: frontend/cypress/videos
+      - name: Run Cypress spec (matrix)
+        uses: cypress-io/github-action@v5
+        with:
+          start: npm run dev --prefix frontend
+          wait-on: "http://localhost:3000"
+          working-directory: ./frontend
+          browser: chrome
+          spec: ${{ matrix.spec }}
+          command: npx cypress run --spec ${{ matrix.spec }}
+          retries: 2
+        env:
+          API_URL: http://localhost:4000
+          CYPRESS_baseUrl: http://localhost:3000
+
+      - name: Upload Cypress screenshots (matrix)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-${{ matrix.spec }}-screenshots
+          path: frontend/cypress/screenshots
+
+      - name: Upload Cypress videos (matrix)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-${{ matrix.spec }}-videos
+          path: frontend/cypress/videos
+
+      - name: Upload Cypress results (matrix)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-${{ matrix.spec }}-results
+          path: frontend/cypress/results
