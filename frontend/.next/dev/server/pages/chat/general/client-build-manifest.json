@@ -1,0 +1,5 @@
+{
+  "/chat/general": [
+    "static/chunks/pages/chat/general.js"
+  ]
+}

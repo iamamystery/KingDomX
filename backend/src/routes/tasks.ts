@@ -1,14 +1,38 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../prisma'
-import { verifyToken, requireRole } from '../middleware/auth'
-
-const router = Router()
+import { verifyToken, requireRole, AuthenticatedRequest } from '../middleware/auth'
 import { body, validationResult } from 'express-validator'
 
-// List tasks (all roles can view; rolled-up permissions can be enhanced)
+const router = Router()
+
+// Get all tasks for current user
 router.get('/', verifyToken, async (req: Request, res: Response) => {
-  const tasks = await prisma.task.findMany({ include: { assignee: true, project: true } })
-  res.json(tasks)
+  const user = (req as AuthenticatedRequest).user
+  const { projectId, assigneeId, status } = req.query
+  
+  try {
+    let whereClause: any = {
+      OR: [
+        { assigneeId: user.id },
+        { project: { ownerId: user.id } }
+      ]
+    }
+    
+    if (projectId) whereClause.projectId = parseInt(projectId as string)
+    if (assigneeId) whereClause.assigneeId = parseInt(assigneeId as string)
+    if (status) whereClause.status = status
+    
+    const tasks = await prisma.task.findMany({
+      where: whereClause,
+      include: { assignee: true, project: true },
+      orderBy: { position: 'asc' }
+    })
+    
+    res.json(tasks)
+  } catch (error) {
+    console.error('Tasks fetch error:', error)
+    res.status(500).json({ message: 'Failed to fetch tasks' })
+  }
 })
 
 // Create task

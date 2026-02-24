@@ -6,12 +6,26 @@
   "basePath": "",
   "redirects": [
     {
-      "source": "/:path+/",
-      "destination": "/:path+",
+      "source": "/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/",
+      "destination": "/:file",
+      "internal": true,
+      "priority": true,
+      "missing": [
+        {
+          "type": "header",
+          "key": "x-nextjs-data"
+        }
+      ],
+      "statusCode": 308,
+      "regex": "^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+))/$"
+    },
+    {
+      "source": "/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)",
+      "destination": "/:notfile/",
       "internal": true,
       "priority": true,
       "statusCode": 308,
-      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+      "regex": "^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+))$"
     }
   ],
   "headers": [],
@@ -29,10 +43,100 @@
       "namedRegex": "^/(?:/)?$"
     },
     {
+      "page": "/all-tasks",
+      "regex": "^/all\\-tasks(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/all\\-tasks(?:/)?$"
+    },
+    {
+      "page": "/assigned-comments",
+      "regex": "^/assigned\\-comments(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/assigned\\-comments(?:/)?$"
+    },
+    {
+      "page": "/automations",
+      "regex": "^/automations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/automations(?:/)?$"
+    },
+    {
+      "page": "/calendar",
+      "regex": "^/calendar(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/calendar(?:/)?$"
+    },
+    {
+      "page": "/channels",
+      "regex": "^/channels(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/channels(?:/)?$"
+    },
+    {
+      "page": "/chat",
+      "regex": "^/chat(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/chat(?:/)?$"
+    },
+    {
+      "page": "/chat/dm/1",
+      "regex": "^/chat/dm/1(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/chat/dm/1(?:/)?$"
+    },
+    {
+      "page": "/chat/general",
+      "regex": "^/chat/general(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/chat/general(?:/)?$"
+    },
+    {
+      "page": "/chat/welcome",
+      "regex": "^/chat/welcome(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/chat/welcome(?:/)?$"
+    },
+    {
+      "page": "/chat-activity",
+      "regex": "^/chat\\-activity(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/chat\\-activity(?:/)?$"
+    },
+    {
+      "page": "/customize",
+      "regex": "^/customize(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/customize(?:/)?$"
+    },
+    {
       "page": "/dashboard",
       "regex": "^/dashboard(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/docs",
+      "regex": "^/docs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/docs(?:/)?$"
+    },
+    {
+      "page": "/docs/project-notes",
+      "regex": "^/docs/project\\-notes(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/docs/project\\-notes(?:/)?$"
+    },
+    {
+      "page": "/drafts",
+      "regex": "^/drafts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/drafts(?:/)?$"
+    },
+    {
+      "page": "/inbox",
+      "regex": "^/inbox(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/inbox(?:/)?$"
     },
     {
       "page": "/login",
@@ -41,10 +145,40 @@
       "namedRegex": "^/login(?:/)?$"
     },
     {
+      "page": "/posts",
+      "regex": "^/posts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/posts(?:/)?$"
+    },
+    {
       "page": "/projects",
       "regex": "^/projects(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/projects(?:/)?$"
+    },
+    {
+      "page": "/projects/1",
+      "regex": "^/projects/1(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/projects/1(?:/)?$"
+    },
+    {
+      "page": "/projects/2",
+      "regex": "^/projects/2(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/projects/2(?:/)?$"
+    },
+    {
+      "page": "/replies",
+      "regex": "^/replies(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/replies(?:/)?$"
+    },
+    {
+      "page": "/reports",
+      "regex": "^/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/reports(?:/)?$"
     },
     {
       "page": "/settings",
@@ -57,6 +191,24 @@
       "regex": "^/signup(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/signup(?:/)?$"
+    },
+    {
+      "page": "/spaces",
+      "regex": "^/spaces(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/spaces(?:/)?$"
+    },
+    {
+      "page": "/spaces/2",
+      "regex": "^/spaces/2(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/spaces/2(?:/)?$"
+    },
+    {
+      "page": "/splash",
+      "regex": "^/splash(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/splash(?:/)?$"
     },
     {
       "page": "/tasks",

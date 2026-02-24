@@ -11,7 +11,7 @@
     "cleanDistDir": true,
     "assetPrefix": "",
     "cacheMaxMemorySize": 52428800,
-    "configOrigin": "default",
+    "configOrigin": "next.config.js",
     "useFileSystemPublicRoutes": true,
     "generateEtags": true,
     "pageExtensions": [
@@ -42,7 +42,7 @@
         256,
         384
       ],
-      "path": "/_next/image",
+      "path": "/_next/image/",
       "loader": "default",
       "loaderFile": "",
       "domains": [],
@@ -67,7 +67,7 @@
       "qualities": [
         75
       ],
-      "unoptimized": false
+      "unoptimized": true
     },
     "devIndicators": {
       "position": "bottom-left"
@@ -78,7 +78,7 @@
     },
     "basePath": "",
     "sassOptions": {},
-    "trailingSlash": false,
+    "trailingSlash": true,
     "i18n": null,
     "productionBrowserSourceMaps": false,
     "excludeDefaultMomentLocales": true,
@@ -92,6 +92,7 @@
     "compiler": {},
     "expireTime": 31536000,
     "staticPageGenerationTimeout": 60,
+    "output": "export",
     "modularizeImports": {
       "@mui/icons-material": {
         "transform": "@mui/icons-material/{{member}}"
@@ -209,7 +210,6 @@
       "turbopackFileSystemCacheForDev": true,
       "turbopackFileSystemCacheForBuild": false,
       "turbopackInferModuleSideEffects": false,
-      "middlewarePrefetch": "flexible",
       "optimizePackageImports": [
         "lucide-react",
         "date-fns",
@@ -296,7 +296,7 @@
     "turbopack": {
       "root": "C:\\Users\\Muhammad Jawad\\KingDomX"
     },
-    "distDirRoot": ".next"
+    "distDirRoot": "dist"
   },
   "appDir": "C:\\Users\\Muhammad Jawad\\KingDomX\\frontend",
   "relativeAppDir": "frontend",

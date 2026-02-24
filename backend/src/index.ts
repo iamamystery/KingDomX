@@ -9,6 +9,10 @@ import pingRouter from './routes/ping'
 import authRouter from './routes/auth'
 import tasksRouter from './routes/tasks'
 import projectsRouter from './routes/projects'
+import usersRouter from './routes/users'
+import calendarRouter from './routes/calendar'
+import automationsRouter from './routes/automations'
+import reportsRouter from './routes/reports'
 import passport from 'passport'
 import initializePassport from './passport'
 
@@ -36,6 +40,15 @@ app.use('/api', pingRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/tasks', tasksRouter)
 app.use('/api/projects', projectsRouter)
+app.use('/api/users', usersRouter)
+app.use('/api/calendar', calendarRouter)
+app.use('/api/automations', automationsRouter)
+app.use('/api/reports', reportsRouter)
+
+// Root route - fix "Cannot GET /" error
+app.get('/', (req, res) => {
+  res.json({ message: 'KingdomX API Server', version: '0.1.0', status: 'running' })
+})
 
 // error handler (last)
 import errorHandler from './middleware/error'

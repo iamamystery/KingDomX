@@ -1,0 +1,5 @@
+{
+  "/chat/welcome": [
+    "static/chunks/pages/chat/welcome.js"
+  ]
+}

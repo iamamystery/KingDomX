@@ -1,154 +1,298 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
-import useSocket from '../hooks/useSocket'
-import { motion } from 'framer-motion'
-import Button from './ui/Button'
-import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import KanbanColumn from './KanbanColumn'
-import InlineEditor from './InlineEditor'
-import SortableTask from './SortableTask'
+import { mockTasks, Task } from '../data/mockData'
+import { motion, AnimatePresence } from 'framer-motion'
 
-type Task = {
-  id: number
-  title: string
-  description?: string
-  status?: string
-  position?: number
+interface Section {
+  key: string
+  label: string
+  count: number
+  tasks: Task[]
+  color: string
 }
 
-export default function TaskBoard() {
+interface TaskBoardProps {
+  filterAssignee?: string | null
+  filterPriority?: string | null
+}
+
+export default function TaskBoard({ filterAssignee, filterPriority }: TaskBoardProps) {
   const [tasks, setTasks] = useState<Task[]>([])
-  const socketRef = useSocket()
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overdue', 'today', 'upcoming']))
 
   useEffect(() => {
     fetchTasks()
-  }, [])
-
-  useEffect(() => {
-    const s = socketRef.current
-    if (!s) return
-    s.on('task:created', (t: Task) => setTasks((prev) => [t, ...prev]))
-    s.on('task:updated', (t: Task) => setTasks((prev) => prev.map(p => (p.id === t.id ? t : p))))
-    s.on('task:deleted', ({ id }: any) => setTasks((prev) => prev.filter(p => p.id !== id)))
-    return () => {
-      s.off('task:created')
-      s.off('task:updated')
-      s.off('task:deleted')
-    }
-  }, [socketRef])
+  }, [filterAssignee, filterPriority])
 
   async function fetchTasks() {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null
-    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tasks`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-    setTasks(res.data)
-  }
-
-  async function createTask(title: string, status = 'todo') {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null
-    await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tasks`, { title, status }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-  }
-
-  async function updateTask(id: number, data: any) {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null
-    await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tasks/${id}`, data, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-  }
-
-  const columns = [
-    { key: 'todo', label: 'To Do' },
-    { key: 'in_progress', label: 'In Progress' },
-    { key: 'done', label: 'Done' },
-  ]
-
-  const grouped = columns.map(col => ({ ...col, items: tasks.filter(t => (t.status || 'todo') === (col.key === 'in_progress' ? 'in_progress' : col.key)).sort((a,b)=> (a.position||0) - (b.position||0)) }))
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [localGroup, setLocalGroup] = useState(grouped)
-
-  function findColumn(key: string) { return localGroup.find(g => g.key === key) }
-
-  function handleDragOver(e: any) {
-    const { active, over } = e
-    if (!over) return
-    const activeIdLocal = String(active.id)
-    const overId = String(over.id)
-    const overParts = overId.split(':')
-    // when over is column (id like 'todo') we just noop
-    if (overParts.length === 1) return
-  }
-
-  async function handleDragEnd(e: any) {
-    const { active, over } = e
-    if (!over) { setActiveId(null); return }
-    const taskId = Number(active.id)
-    const destKey = over.id as string
-
-    // if same column and exact reorder within column
-    const sourceKey = active.data.current?.status || 'todo'
-
-    if (sourceKey === destKey) {
-      // compute new positions by capturing DOM order
-      try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tasks`)
-        const latest = res.data
-        const colItems = latest.filter((t:any)=> (t.status||'todo') === destKey).sort((a:any,b:any)=> (a.position||0)-(b.position||0))
-        // send updated positions based on current order in DOM (we'll read DOM order via query)
-        const domOrder = Array.from(document.querySelectorAll(`[data-status="${destKey}"] [data-id]`)).map((el: any) => Number(el.getAttribute('data-id')))
-        const items = domOrder.map((id: number, idx: number) => ({ id, status: destKey, position: idx + 1 }))
-        const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null
-        if (items.length) await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tasks/reorder`, { items }, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-        const refreshed = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tasks`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-        setTasks(refreshed.data)
-      } catch (err) { console.error(err) }
-      setActiveId(null)
-      return
+    // Using mock data for static export
+    let filteredTasks = [...mockTasks]
+    
+    // Apply assignee filter
+    if (filterAssignee && filterAssignee !== 'All Assignees') {
+      filteredTasks = filteredTasks.filter((t: Task) => 
+        t.assignees?.includes(filterAssignee) || 
+        (filterAssignee === 'Unassigned' && (!t.assignees || t.assignees.length === 0))
+      )
     }
-
-    // Cross-column move - move to end
-    const dest = findColumn(destKey)
-    const newPos = (dest && dest.items.length > 0) ? (dest.items[dest.items.length - 1].position || 0) + 1 : 1
-    setLocalGroup(grouped.map(g => g.key === sourceKey ? { ...g, items: g.items.filter(i => i.id !== taskId) } : g.key === destKey ? { ...g, items: [...g.items, { id: taskId, title: 'Moving...', position: newPos, status: destKey }] } : g))
-
-    try {
-      await updateTask(taskId, { status: destKey, position: newPos })
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/tasks`)
-      setTasks(res.data)
-    } catch (err) {
-      console.error(err)
+    
+    // Apply priority filter
+    if (filterPriority && filterPriority !== 'All Priorities') {
+      filteredTasks = filteredTasks.filter((t: Task) => 
+        t.priority?.toLowerCase() === filterPriority.toLowerCase()
+      )
     }
-
-    setActiveId(null)
+    
+    setTasks(filteredTasks)
   }
+
+  async function updateTask(id: number, data: Partial<Task>) {
+    // Mock update - in static mode we just update local state
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...data } : t))
+  }
+
+  async function createTask(title: string, section: string) {
+    // Mock create - add to local state
+    const newTask: Task = {
+      id: Date.now(),
+      title,
+      status: 'todo',
+      priority: 'Medium',
+      assignees: [],
+    }
+    setTasks(prev => [newTask, ...prev])
+  }
+
+  function toggleSection(key: string) {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
+
+  function getSections(): Section[] {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const overdue = tasks.filter(t => {
+      if (!t.dueDate) return false
+      const due = new Date(t.dueDate)
+      due.setHours(0, 0, 0, 0)
+      return due < today && t.status !== 'done'
+    })
+
+    const todayTasks = tasks.filter(t => {
+      if (!t.dueDate) return false
+      const due = new Date(t.dueDate)
+      due.setHours(0, 0, 0, 0)
+      return due.getTime() === today.getTime()
+    })
+
+    const upcoming = tasks.filter(t => {
+      if (!t.dueDate) return t.status !== 'done'
+      const due = new Date(t.dueDate)
+      due.setHours(0, 0, 0, 0)
+      return due > today && t.status !== 'done'
+    })
+
+    const noDate = tasks.filter(t => !t.dueDate && t.status !== 'done')
+
+    const completed = tasks.filter(t => t.status === 'done' || t.completed)
+
+    return [
+      { key: 'overdue', label: 'Overdue', count: overdue.length, tasks: overdue, color: 'text-red-400' },
+      { key: 'today', label: 'Today', count: todayTasks.length, tasks: todayTasks, color: 'text-amber-400' },
+      { key: 'upcoming', label: 'Upcoming', count: upcoming.length, tasks: upcoming, color: 'text-blue-400' },
+      { key: 'noDate', label: 'No Date', count: noDate.length, tasks: noDate, color: 'text-gray-400' },
+      { key: 'completed', label: 'Completed', count: completed.length, tasks: completed, color: 'text-green-400' },
+    ]
+  }
+
+  const sections = getSections()
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragStart={(e)=> setActiveId(String(e.active.id))} onDragEnd={handleDragEnd} onDragCancel={() => setActiveId(null)}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {grouped.map(col => (
-          <KanbanColumn key={col.key} id={col.key} title={col.label}>
-            <SortableContext items={col.items.map(i => String(i.id))} strategy={verticalListSortingStrategy}>
-              {col.items.map(task => (
-                <div key={task.id} data-status={task.status} data-id={task.id}>
-                  <SortableTask task={task} onSave={(id:number, data:any)=> updateTask(id,data)} />
-                </div>
-              ))}
-            </SortableContext>
-            <div className="mt-2">
-              <CreateTask onCreate={(title) => createTask(title, col.key === 'in_progress' ? 'in_progress' : col.key)} />
-            </div>
-          </KanbanColumn>
+    <div className="h-[calc(100vh-220px)] overflow-y-auto pr-2">
+      <div className="space-y-2">
+        {sections.map(section => (
+          <div key={section.key} className="border border-white/10 rounded-xl overflow-hidden bg-[#0f0f14]">
+            <button
+              onClick={() => toggleSection(section.key)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <svg
+                  className={`w-4 h-4 text-white/50 transition-transform ${expandedSections.has(section.key) ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                <span className={`font-semibold ${section.color}`}>{section.label}</span>
+                <span className="text-white/40 text-sm">{section.count}</span>
+              </div>
+            </button>
+
+            <AnimatePresence>
+              {expandedSections.has(section.key) && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-3">
+                    {section.tasks.length === 0 ? (
+                      <p className="text-white/30 text-sm py-4 text-center">No tasks in this section</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {section.tasks.map(task => (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            onToggle={() => updateTask(task.id, { completed: !task.completed, status: task.completed ? 'todo' : 'done' })}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <CreateTaskRow onCreate={(title) => createTask(title, section.key)} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         ))}
       </div>
-
-      <DragOverlay>{activeId ? <div className="p-3 bg-white dark:bg-gray-800 rounded shadow-sm">Moving...</div> : null}</DragOverlay>
-    </DndContext>
+    </div>
   )
 }
 
-function CreateTask({ onCreate }: { onCreate: (title: string) => void }) {
-  const [title, setTitle] = useState('')
+function TaskRow({ task, onToggle }: { task: Task; onToggle: () => void }) {
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
+
   return (
-    <div className="flex gap-2">
-      <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 p-2 rounded border bg-transparent" placeholder="New task title" />
-      <Button onClick={() => { if (title.trim()) { onCreate(title.trim()); setTitle('') } }} className="px-3">Add</Button>
+    <div className="group flex items-center gap-3 py-2 px-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer">
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+          task.completed || task.status === 'done'
+            ? 'bg-green-500 border-green-500'
+            : 'border-white/30 hover:border-amber-400'
+        }`}
+      >
+        {(task.completed || task.status === 'done') && (
+          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`truncate ${task.completed || task.status === 'done' ? 'line-through text-white/40' : 'text-white'}`}>
+            {task.title}
+          </span>
+          {task.priority === 'High' && (
+            <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          )}
+        </div>
+      </div>
+
+      {task.status && (
+        <span className={`text-xs px-2 py-0.5 rounded-full ${
+          task.status === 'done' ? 'bg-green-500/20 text-green-400' :
+          task.status === 'in-progress' ? 'bg-amber-500/20 text-amber-400' :
+          task.status === 'review' ? 'bg-purple-500/20 text-purple-400' :
+          'bg-blue-500/20 text-blue-400'
+        }`}>
+          {task.status.replace('_', ' ')}
+        </span>
+      )}
+
+      {task.dueDate && (
+        <span className={`text-xs ${isOverdue ? 'text-red-400' : 'text-white/50'}`}>
+          {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </span>
+      )}
+
+      {task.assignees && task.assignees.length > 0 && (
+        <div className="flex -space-x-1">
+          {task.assignees.slice(0, 3).map((assignee, i) => (
+            <div
+              key={i}
+              className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-xs text-white font-medium border-2 border-[#0f0f14]"
+            >
+              {assignee.charAt(0).toUpperCase()}
+            </div>
+          ))}
+          {task.assignees.length > 3 && (
+            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs text-white/60 border-2 border-[#0f0f14]">
+              +{task.assignees.length - 3}
+            </div>
+          )}
+        </div>
+      )}
+
+      {task.tags?.map((tag, i) => (
+        <span
+          key={i}
+          className="text-xs px-2 py-0.5 bg-white/10 rounded text-white/60"
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function CreateTaskRow({ onCreate }: { onCreate: (title: string) => void }) {
+  const [isAdding, setIsAdding] = useState(false)
+  const [title, setTitle] = useState('')
+
+  if (!isAdding) {
+    return (
+      <button
+        onClick={() => setIsAdding(true)}
+        className="flex items-center gap-2 py-2 px-2 text-white/40 hover:text-white/60 transition-colors text-sm"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        Add task
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2 py-2 px-2">
+      <div className="w-5 h-5 rounded border-2 border-white/30" />
+      <input
+        autoFocus
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && title.trim()) {
+            onCreate(title.trim())
+            setTitle('')
+            setIsAdding(false)
+          } else if (e.key === 'Escape') {
+            setIsAdding(false)
+            setTitle('')
+          }
+        }}
+        onBlur={() => {
+          if (!title.trim()) setIsAdding(false)
+        }}
+        placeholder="Task name"
+        className="flex-1 bg-transparent text-white placeholder-white/30 focus:outline-none text-sm"
+      />
     </div>
   )
 }

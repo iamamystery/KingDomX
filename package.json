@@ -7,13 +7,11 @@
     "start": "node ./backend/build/index.js",
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend"
   },
-  "dependencies": {
-    "concurrently": "^7.6.0"
-  },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/passport": "^1.0.17",
-    "@types/passport-google-oauth20": "^2.0.17"
+    "@types/passport-google-oauth20": "^2.0.17",
+    "concurrently": "^9.2.1"
   }
 }

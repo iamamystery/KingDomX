@@ -3,15 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-enum Role {
-  ADMIN
-  MANAGER
-  STAFF
-  CLIENT
 }
 
 model User {
@@ -19,11 +12,14 @@ model User {
   email     String  @unique
   name      String?
   password  String?
-  role      Role    @default(CLIENT)
+  role      String  @default("CLIENT")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   tasks     Task[]  @relation("Assignee")
   ownedProjects Project[]
+  calendarEvents CalendarEvent[]
+  automations Automation[]
+  activityLogs ActivityLog[]
 }
 
 model Project {
@@ -35,6 +31,7 @@ model Project {
   tasks     Task[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  activityLogs ActivityLog[]
 }
 
 model Task {
@@ -50,4 +47,50 @@ model Task {
   project    Project? @relation(fields: [projectId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  calendarEvents CalendarEvent[]
+  activityLogs ActivityLog[]
+}
+
+model CalendarEvent {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  allDay      Boolean  @default(false)
+  type        String   @default("event") // event, task, meeting
+  taskId      Int?
+  task        Task?    @relation(fields: [taskId], references: [id])
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Automation {
+  id          Int      @id @default(autoincrement())
+  name        String
+  trigger     String   // JSON trigger configuration
+  conditions  String?  // JSON conditions
+  actions     String   // JSON actions to perform
+  status      String   @default("active") // active, paused, disabled
+  runCount    Int      @default(0)
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  type        String   // task_created, task_updated, project_created, etc.
+  description String
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  projectId   Int?
+  project     Project? @relation(fields: [projectId], references: [id])
+  taskId      Int?
+  task        Task?    @relation(fields: [taskId], references: [id])
+  metadata    String?  // JSON additional data
+  createdAt   DateTime @default(now())
 }
